@@ -1,0 +1,23 @@
+name: Audit Echelon release metadata
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 12 * * 1'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit published GitHub release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/audit-release-assets.sh
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: armamentarium-release-audit
+          path: evidence/
+          if-no-files-found: warn
