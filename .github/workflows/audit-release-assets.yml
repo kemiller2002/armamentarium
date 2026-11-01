@@ -1,8 +1,6 @@
-name: Audit Echelon release metadata
+name: Audit Echelon GitHub release metadata
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 12 * * 1'
 permissions:
   contents: read
 jobs:
@@ -10,14 +8,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Audit published GitHub release metadata
+      - name: Collect release metadata without executing downloaded code
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/audit-release-assets.sh
-      - name: Upload audit evidence
-        if: always()
-        uses: actions/upload-artifact@v4
+        shell: bash
+        run: |
+          mkdir -p evidence
+          printf 'repository,status,tag,asset_count\n' > evidence/releases.csv
+          for name in conditor praxis ordo dokimos aegis vigila vitium fides strata arca percepta limen forma forma-studio folio iter; do
+            repo="kemiller2002/$name"
+            if payload=$(gh api "repos/$repo/releases/latest" 2>/dev/null); then
+              tag=$(jq -r '.tag_name' <<< "$payload")
+              count=$(jq '.assets | length' <<< "$payload")
+              printf '%s,FOUND,%s,%s\n' "$repo" "$tag" "$count" >> evidence/releases.csv
+            else
+              printf '%s,UNKNOWN_OR_NO_LATEST_RELEASE,,\n' "$repo" >> evidence/releases.csv
+            fi
+          done
+          cat evidence/releases.csv
+      - uses: actions/upload-artifact@v4
         with:
-          name: armamentarium-release-audit
-          path: evidence/
-          if-no-files-found: warn
+          name: release-metadata-audit
+          path: evidence/releases.csv
